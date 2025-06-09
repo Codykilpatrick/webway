@@ -1,5 +1,5 @@
 [package]
-name = "webway-data-generation"
+name = "webway-parser"
 version = "0.1.0"
 edition = "2021"
 
