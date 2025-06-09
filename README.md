@@ -1,166 +1,162 @@
-# Webway Monorepo
+# WebWay Monorepo
 
-A TypeScript monorepo containing packages for Redpanda cluster management and binary data parsing.
+A high-performance monorepo containing data processing utilities built with Rust, including Redpanda cluster integration, binary data parsing, and data generation tools.
 
-## Structure
+## 🚀 Overview
+
+WebWay is a collection of high-performance data processing utilities designed for efficient data manipulation and generation. The project leverages Rust's performance capabilities while providing a modern JavaScript/TypeScript interface.
+
+### Key Features
+
+- **High-Performance Data Parser**: Rust-based binary data parsing with exceptional speed
+- **Data Generation Utilities**: Efficient tools for generating test and mock data
+- **Redpanda Integration**: Seamless integration with Redpanda clusters
+- **TypeScript Support**: Full TypeScript definitions and support
+- **Monorepo Architecture**: Organized workspace structure with Yarn workspaces
+
+## 📦 Packages
+
+This monorepo contains the following packages:
+
+### [@webway/data-parser](./packages/webway-parser)
+High-performance data parser built with Rust for processing binary data formats.
+
+**Features:**
+- Lightning-fast binary data parsing
+- Memory-efficient processing
+- TypeScript bindings
+- Comprehensive error handling
+
+### [@webway/data-generation](./packages/webway-data-generation)
+High-performance data generation utilities for creating test data and mock datasets.
+
+**Features:**
+- Fast data generation algorithms
+- Customizable data patterns
+- Multiple output formats
+- Rust-powered performance
+
+## 🛠️ Prerequisites
+
+Before getting started, ensure you have the following installed:
+
+- **Node.js** >= 18.0.0
+- **Yarn** >= 1.22.0 (recommended: 3.6.4)
+- **Rust** (latest stable version)
+- **Cargo** (comes with Rust)
+
+## 📋 Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/webway.git
+   cd webway
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   yarn install
+   ```
+
+3. **Build all packages:**
+   ```bash
+   yarn build
+   ```
+
+## 🔧 Development
+
+### Available Scripts
+
+- `yarn lint` - Lint code using Cargo clippy
+- `yarn prettier:check` - Check code formatting
+- `yarn prettier:fix` - Fix code formatting
+
+### Working with Individual Packages
+
+Navigate to specific packages to work on them individually:
+
+```bash
+# Work on the data parser
+cd packages/webway-parser
+cargo build --release
+cargo test
+
+# Work on data generation
+cd packages/webway-data-generation
+cargo build --release
+cargo test
+```
+
+### Package-Specific Commands
+
+Each package supports the following Cargo commands:
+
+- `cargo build --release` - Build optimized release version
+- `cargo run` - Run the package in development mode
+- `cargo test` - Run package tests
+- `cargo clippy -- -D warnings` - Lint with Clippy
+- `cargo fmt` - Format Rust code
+- `cargo clean` - Clean build artifacts
+
+## 🏗️ Project Structure
 
 ```
 webway/
 ├── packages/
-│   ├── redpanda-cluster/    # Redpanda cluster management
-│   └── parser/              # Binary data parser and generator
-├── package.json             # Root package.json with workspaces
-└── README.md
+│   ├── webway-parser/          # High-performance data parser
+│   │   ├── src/                # Rust source code
+│   │   ├── test_data/          # Test data files
+│   │   ├── Cargo.toml          # Rust package configuration
+│   │   └── package.json        # Node.js package configuration
+│   └── webway-data-generation/ # Data generation utilities
+│       ├── src/                # Rust source code
+│       ├── test_data/          # Test data files
+│       ├── Cargo.toml          # Rust package configuration
+│       └── package.json        # Node.js package configuration
+├── package.json                # Root package configuration
+├── yarn.lock                   # Yarn lockfile
+└── README.md                   # This file
 ```
 
-## Packages
+## 🚀 Usage
 
-### @webway/redpanda-cluster
 
-A package for managing Redpanda clusters with Kafka-compatible operations.
+## 🧪 Testing
 
-**Features:**
-- Cluster connection management
-- Producer and consumer creation
-- Topic management
-- Admin operations
-- **Kubernetes deployment manifests and scripts**
-- Ready-to-use StatefulSet for production deployments
-
-### @webway/parser
-
-A package for parsing binary data and generating test data.
-
-**Features:**
-- Schema-based binary data parsing
-- Data serialization/deserialization
-- Test data generation with Faker.js
-- Support for various data types (integers, floats, strings, booleans)
-
-## Setup
-
-1. Install dependencies:
-```bash
-yarn install
-```
-
-2. Build all packages:
-```bash
-yarn build
-```
-
-3. Run development mode:
-```bash
-yarn dev
-```
-
-## Usage Examples
-
-### Redpanda Cluster
-
-#### TypeScript API
-
-```typescript
-import { RedpandaCluster } from '@webway/redpanda-cluster';
-
-const cluster = new RedpandaCluster({
-  brokers: ['localhost:9092'],
-  clientId: 'my-app'
-});
-
-// Create a topic
-await cluster.createTopic('my-topic', 3, 1);
-
-// Get producer
-const producer = await cluster.createProducer();
-await producer.connect();
-
-// Send message
-await producer.send({
-  topic: 'my-topic',
-  messages: [{ value: 'Hello Redpanda!' }]
-});
-```
-
-#### Kubernetes Deployment
-
-Deploy a production-ready Redpanda cluster to Kubernetes:
+Run tests for all packages:
 
 ```bash
-# Navigate to the redpanda-cluster package
-cd packages/redpanda-cluster
-
-# Deploy the cluster
-yarn k8s:deploy
-
-# Check status
-yarn k8s:status
-
-# Clean up when done
-yarn k8s:cleanup
+yarn test
 ```
 
-The deployment includes:
-- 3-node Redpanda cluster with persistent storage
-- Internal and external services
-- ConfigMap with optimized settings
-- Health checks and monitoring
+Run tests for individual packages:
 
-See [packages/redpanda-cluster/k8s/README.md](packages/redpanda-cluster/k8s/README.md) for detailed instructions.
+```bash
+# Test data parser
+yarn workspace @webway/data-parser run test
 
-### Binary Parser
-
-```typescript
-import { BinaryParser, DataGenerator } from '@webway/parser';
-
-const schema = {
-  fields: [
-    { name: 'id', type: 'uint32' },
-    { name: 'temperature', type: 'float' },
-    { name: 'name', type: 'string', length: 20 },
-    { name: 'active', type: 'boolean' }
-  ]
-};
-
-// Generate test data
-const generator = new DataGenerator(schema);
-const testData = generator.generate();
-
-// Parse binary data
-const parser = new BinaryParser(schema);
-const binaryData = parser.serialize(testData);
-const parsedData = parser.parse(binaryData);
+# Test data generation
+yarn workspace @webway/data-generation run test
 ```
 
-## Development
+## 🔍 Code Quality
 
-### Scripts
+This project maintains high code quality standards:
 
-- `yarn build` - Build all packages
-- `yarn dev` - Start development mode for all packages
-- `yarn test` - Run tests for all packages
-- `yarn lint` - Lint all packages
-- `yarn clean` - Clean build artifacts
+- **Rust**: Uses Clippy for linting and rustfmt for formatting
+- **JavaScript/TypeScript**: Uses Prettier for consistent formatting
+- **Git Hooks**: Pre-commit hooks ensure code quality
 
-### Adding New Packages
-
-1. Create a new directory in `packages/`
-2. Add a `package.json` with name `@webway/package-name`
-3. Add TypeScript configuration
-4. The package will be automatically included in workspace operations
-
-## Environment Variables
-
-### Redpanda Cluster
-
-Create a `.env` file in the root or in the `packages/redpanda-cluster` directory:
-
-```env
-REDPANDA_BROKERS=localhost:9092
-REDPANDA_CLIENT_ID=webway-app
-REDPANDA_SSL=false
+Check formatting:
+```bash
+yarn prettier:check
 ```
 
-## License
+Fix formatting issues:
+```bash
+yarn prettier:fix
+```
 
-Private - All rights reserved 
+## 📄 License
+
+This project is licensed under the MIT License - see the individual package LICENSE files for details.
