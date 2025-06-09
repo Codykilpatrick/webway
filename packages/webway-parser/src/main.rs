@@ -146,7 +146,7 @@ fn main() -> Result<(), ParseError> {
     println!("Sensor Data Parser\n");
     
     // Parse sensor data
-    match SensorParser::parse_sensor_file("../webway-data-generation/test_data/sensor_data.bin") {
+    match SensorParser::parse_sensor_file(&std::env::var("DATA_PATH").unwrap_or("../webway-data-generation/test_data/sensor_data.bin".to_string())) {
         Ok(readings) => {
             println!("Successfully parsed {} sensor readings", readings.len());
             if !readings.is_empty() {
