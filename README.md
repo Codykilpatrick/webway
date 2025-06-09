@@ -40,7 +40,7 @@ High-performance data generation utilities for creating test data and mock datas
 
 Before getting started, ensure you have the following installed:
 
-- **Node.js** >= 18.0.0
+- **Node.js** >= 22.0.0
 - **Yarn** >= 1.22.0 (recommended: 3.6.4)
 - **Rust** (latest stable version)
 - **Cargo** (comes with Rust)
