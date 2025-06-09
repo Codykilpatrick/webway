@@ -151,21 +151,14 @@ fn main() -> Result<(), ParseError> {
             println!("Successfully parsed {} sensor readings", readings.len());
             if !readings.is_empty() {
                 println!("Sample readings:");
-                for (i, reading) in readings.iter().take(5).enumerate() {
+                for (i, reading) in readings.iter().enumerate() {
+                    // println!("{:?}", reading);
                     println!("  {}: Sensor {} - {:.1}°C, {:.1}% humidity, {:.1} hPa", 
                             i + 1, reading.sensor_id, reading.temperature, 
                             reading.humidity, reading.pressure);
                 }
+
                 
-                // Show some basic statistics
-                let avg_temp: f32 = readings.iter().map(|r| r.temperature).sum::<f32>() / readings.len() as f32;
-                let avg_humidity: f32 = readings.iter().map(|r| r.humidity).sum::<f32>() / readings.len() as f32;
-                let avg_pressure: f32 = readings.iter().map(|r| r.pressure).sum::<f32>() / readings.len() as f32;
-                
-                println!("\nAverages:");
-                println!("  Temperature: {:.1}°C", avg_temp);
-                println!("  Humidity: {:.1}%", avg_humidity);
-                println!("  Pressure: {:.1} hPa", avg_pressure);
             }
         }
         Err(e) => eprintln!("Error parsing sensor data: {:?}", e),
