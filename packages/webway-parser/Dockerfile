@@ -1,5 +1,14 @@
 # Use the official Rust image as the base
-FROM rust:1.75
+FROM rust:1.87
+
+# Install system dependencies for Rust build
+RUN apt-get update && apt-get install -y \
+    vim \
+    libsasl2-dev \
+    libssl-dev \
+    pkg-config \
+    cmake \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
@@ -13,18 +22,9 @@ COPY src/ ./src/
 # Build the application in release mode
 RUN cargo build --release
 
-# Create a non-root user
-RUN useradd -m -u 1000 appuser
-
-
 # Create directory for test data
 RUN mkdir -p /app/test_data
 
-# Change ownership of the app directory to the non-root user
-RUN chown -R appuser:appuser /app
-
-# Switch to the non-root user
-USER appuser
 
 # Set the default command
 CMD ["./target/release/webway-parser"]
