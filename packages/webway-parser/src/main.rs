@@ -1,9 +1,18 @@
 use std::fs::File;
 use std::io::{Read, BufReader};
 use std::convert::TryInto;
+use std::time::Duration;
+
+use rdkafka::config::ClientConfig;
+use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
+use rdkafka::util::Timeout;
+use serde::{Deserialize, Serialize};
+use serde_json;
+use tokio;
+use tracing::{info, error, warn};
 
 // Define our sensor data structure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorReading {
     pub timestamp: u64,
     pub sensor_id: u32,
@@ -24,11 +33,25 @@ pub enum ParseError {
     IoError(std::io::Error),
     InvalidMagic(String),
     InvalidFormat(String),
+    KafkaError(rdkafka::error::KafkaError),
+    SerializationError(serde_json::Error),
 }
 
 impl From<std::io::Error> for ParseError {
     fn from(error: std::io::Error) -> Self {
         ParseError::IoError(error)
+    }
+}
+
+impl From<rdkafka::error::KafkaError> for ParseError {
+    fn from(error: rdkafka::error::KafkaError) -> Self {
+        ParseError::KafkaError(error)
+    }
+}
+
+impl From<serde_json::Error> for ParseError {
+    fn from(error: serde_json::Error) -> Self {
+        ParseError::SerializationError(error)
     }
 }
 
@@ -105,6 +128,14 @@ impl SensorReading {
     pub fn size_in_bytes() -> usize {
         8 + 4 + 4 + 4 + 4 // timestamp + sensor_id + temp + humidity + pressure
     }
+
+    pub fn to_json(&self) -> Result<String, ParseError> {
+        Ok(serde_json::to_string(self)?)
+    }
+
+    pub fn get_kafka_key(&self) -> String {
+        format!("sensor_{}", self.sensor_id)
+    }
 }
 
 pub struct SensorParser;
@@ -123,7 +154,7 @@ impl SensorParser {
             )));
         }
         
-        println!("Parsing sensor file: {} records, version {}", 
+        info!("Parsing sensor file: {} records, version {}", 
                 header.record_count, header.version);
         
         let mut readings = Vec::new();
@@ -132,7 +163,7 @@ impl SensorParser {
             match SensorReading::parse(&mut reader) {
                 Ok(reading) => readings.push(reading),
                 Err(e) => {
-                    eprintln!("Error parsing sensor record {}: {:?}", i, e);
+                    error!("Error parsing sensor record {}: {:?}", i, e);
                     break;
                 }
             }
@@ -142,26 +173,139 @@ impl SensorParser {
     }
 }
 
-fn main() -> Result<(), ParseError> {
-    println!("Sensor Data Parser\n");
+pub struct KafkaProducerWrapper {
+    producer: FutureProducer,
+    topic: String,
+}
+
+impl KafkaProducerWrapper {
+    pub fn new(brokers: &str, topic: &str) -> Result<Self, ParseError> {
+        let producer: FutureProducer = ClientConfig::new()
+            .set("bootstrap.servers", brokers)
+            .set("message.timeout.ms", "5000")
+            .set("acks", "all") // Wait for all replicas to acknowledge
+            .set("retries", "3")
+            .set("retry.backoff.ms", "100")
+            .set("batch.size", "16384")
+            .set("linger.ms", "10") // Small delay to batch messages
+            .create()?;
+
+        Ok(KafkaProducerWrapper {
+            producer,
+            topic: topic.to_string(),
+        })
+    }
+
+    pub async fn send_sensor_reading(&self, reading: &SensorReading) -> Result<(), ParseError> {
+        let json_payload = reading.to_json()?;
+        let key = reading.get_kafka_key();
+
+        let record = FutureRecord::to(&self.topic)
+            .key(&key)
+            .payload(&json_payload)
+            .timestamp(reading.timestamp as i64);
+
+        match self.producer.send(record, Timeout::After(Duration::from_secs(5))).await {
+            Ok(delivery) => {
+                info!("Message sent successfully: {:?}", delivery);
+                Ok(())
+            }
+            Err((kafka_error, _)) => {
+                error!("Failed to send message: {:?}", kafka_error);
+                Err(ParseError::KafkaError(kafka_error))
+            }
+        }
+    }
+
+    pub async fn send_batch_sensor_readings(&self, readings: &[SensorReading]) -> Result<(), ParseError> {
+        info!("Sending {} sensor readings to Kafka topic '{}'", readings.len(), self.topic);
+        
+        let mut successful_sends = 0;
+        let mut failed_sends = 0;
+
+        for (index, reading) in readings.iter().enumerate() {
+            match self.send_sensor_reading(reading).await {
+                Ok(_) => {
+                    successful_sends += 1;
+                    if (index + 1) % 100 == 0 {
+                        info!("Sent {} of {} messages", index + 1, readings.len());
+                    }
+                }
+                Err(e) => {
+                    failed_sends += 1;
+                    warn!("Failed to send reading for sensor {}: {:?}", reading.sensor_id, e);
+                }
+            }
+        }
+
+        info!("Batch send complete: {} successful, {} failed", successful_sends, failed_sends);
+
+        // Flush the producer to ensure all messages are sent
+        match self.producer.flush(Timeout::After(Duration::from_secs(10))) {
+            Ok(_) => info!("Producer flushed successfully"),
+            Err(e) => error!("Failed to flush producer: {:?}", e),
+        }
+
+        Ok(())
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), ParseError> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter("info")
+        .init();
+
+    info!("Sensor Data Parser with Kafka Integration\n");
     
+    // Configuration
+    let data_path = std::env::var("DATA_PATH")
+        .unwrap_or("../webway-data-generation/test_data/sensor_data.bin".to_string());
+    let kafka_brokers = std::env::var("KAFKA_BROKERS")
+        .unwrap_or("localhost:19092".to_string());
+    let kafka_topic = std::env::var("KAFKA_TOPIC")
+        .unwrap_or("sensor-data".to_string());
+
+    info!("Configuration:");
+    info!("  Data file: {}", data_path);
+    info!("  Kafka brokers: {}", kafka_brokers);
+    info!("  Kafka topic: {}", kafka_topic);
+
     // Parse sensor data
-    match SensorParser::parse_sensor_file(&std::env::var("DATA_PATH").unwrap_or("../webway-data-generation/test_data/sensor_data.bin".to_string())) {
+    match SensorParser::parse_sensor_file(&data_path) {
         Ok(readings) => {
-            println!("Successfully parsed {} sensor readings", readings.len());
+            info!("Successfully parsed {} sensor readings", readings.len());
+            
             if !readings.is_empty() {
-                println!("Sample readings:");
-                for (i, reading) in readings.iter().enumerate() {
-                    // println!("{:?}", reading);
-                    println!("  {}: Sensor {} - {:.1}°C, {:.1}% humidity, {:.1} hPa", 
+                info!("Sample readings:");
+                for (i, reading) in readings.iter().take(5).enumerate() {
+                    info!("  {}: Sensor {} - {:.1}°C, {:.1}% humidity, {:.1} hPa", 
                             i + 1, reading.sensor_id, reading.temperature, 
                             reading.humidity, reading.pressure);
                 }
 
-                
+                // Create Kafka producer and send data
+                match KafkaProducerWrapper::new(&kafka_brokers, &kafka_topic) {
+                    Ok(kafka_producer) => {
+                        info!("Kafka producer created successfully");
+                        
+                        // Send all readings to Kafka
+                        if let Err(e) = kafka_producer.send_batch_sensor_readings(&readings).await {
+                            error!("Error sending data to Kafka: {:?}", e);
+                        } else {
+                            info!("All sensor data sent to Kafka successfully!");
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to create Kafka producer: {:?}", e);
+                    }
+                }
             }
         }
-        Err(e) => eprintln!("Error parsing sensor data: {:?}", e),
+        Err(e) => {
+            error!("Error parsing sensor data: {:?}", e);
+        }
     }
     
     Ok(())
