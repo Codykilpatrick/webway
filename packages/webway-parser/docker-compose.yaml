@@ -11,5 +11,3 @@ services:
     environment:
       - RUST_LOG=debug
       - DATA_PATH=/app/test_data/sensor_data.bin
-    ports:
-      - 8080:8080
