@@ -42,3 +42,12 @@ serde_json = "1.0"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Database connectivity
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "mysql", "chrono", "uuid", "json"] }
+tokio-postgres = "0.7"
+mysql_async = "0.33"
+
+# Database utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
