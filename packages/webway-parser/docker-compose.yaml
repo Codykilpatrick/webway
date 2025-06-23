@@ -8,6 +8,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    platform: linux/amd64
     container_name: webway-parser
     image: webway-parser:1.0.0
     volumes:
