@@ -28,6 +28,7 @@ services:
       # Tells Seastar (the framework Redpanda uses under the hood) to use 1 core on the system.
       - --smp 1
       - --default-log-level=info
+      - --set kafka_batch_max_bytes=10485760
     image: docker.redpanda.com/redpandadata/redpanda:v25.1.5
     container_name: redpanda-0
     volumes:

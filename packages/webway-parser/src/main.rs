@@ -1,312 +1,217 @@
-use std::fs::File;
-use std::io::{Read, BufReader};
-use std::convert::TryInto;
-use std::time::Duration;
+// No build.rs needed! No .proto file needed! Just use prost derive macros directly.
 
-use rdkafka::config::ClientConfig;
+use prost::Message;
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
-use rdkafka::util::Timeout;
-use serde::{Deserialize, Serialize};
-use serde_json;
+use rdkafka::admin::{AdminClient, AdminOptions, NewTopic, TopicReplication};
+use rdkafka::ClientConfig;
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use rand::Rng;
 use tokio;
-use tracing::{info, error, warn};
 
-// Define our sensor data structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SensorReading {
-    pub timestamp: u64,
-    pub sensor_id: u32,
-    pub temperature: f32,
-    pub humidity: f32,
-    pub pressure: f32,
-}
-
-#[derive(Debug)]
-pub struct FileHeader {
-    pub magic: [u8; 4],
-    pub version: u32,
-    pub record_count: u32,
-}
-
-#[derive(Debug)]
-pub enum ParseError {
-    IoError(std::io::Error),
-    InvalidMagic(String),
-    InvalidFormat(String),
-    KafkaError(rdkafka::error::KafkaError),
-    SerializationError(serde_json::Error),
-}
-
-impl From<std::io::Error> for ParseError {
-    fn from(error: std::io::Error) -> Self {
-        ParseError::IoError(error)
-    }
-}
-
-impl From<rdkafka::error::KafkaError> for ParseError {
-    fn from(error: rdkafka::error::KafkaError) -> Self {
-        ParseError::KafkaError(error)
-    }
-}
-
-impl From<serde_json::Error> for ParseError {
-    fn from(error: serde_json::Error) -> Self {
-        ParseError::SerializationError(error)
-    }
-}
-
-// Helper function to read exact number of bytes
-fn read_exact_bytes<R: Read>(reader: &mut R, count: usize) -> Result<Vec<u8>, ParseError> {
-    let mut buffer = vec![0u8; count];
-    reader.read_exact(&mut buffer)?;
-    Ok(buffer)
-}
-
-// Helper functions to convert bytes to different types
-fn bytes_to_u32(bytes: &[u8]) -> u32 {
-    u32::from_le_bytes(bytes.try_into().unwrap())
-}
-
-fn bytes_to_u64(bytes: &[u8]) -> u64 {
-    u64::from_le_bytes(bytes.try_into().unwrap())
-}
-
-fn bytes_to_f32(bytes: &[u8]) -> f32 {
-    f32::from_le_bytes(bytes.try_into().unwrap())
-}
-
-impl FileHeader {
-    fn parse<R: Read>(reader: &mut R) -> Result<Self, ParseError> {
-        let magic_bytes = read_exact_bytes(reader, 4)?;
-        let mut magic = [0u8; 4];
-        magic.copy_from_slice(&magic_bytes);
-        
-        let version_bytes = read_exact_bytes(reader, 4)?;
-        let version = bytes_to_u32(&version_bytes);
-        
-        let count_bytes = read_exact_bytes(reader, 4)?;
-        let record_count = bytes_to_u32(&count_bytes);
-        
-        Ok(FileHeader {
-            magic,
-            version,
-            record_count,
-        })
-    }
+// Define your protobuf struct directly using prost derive macros
+#[derive(Clone, PartialEq, Message)]
+pub struct AutomationData {
+    #[prost(int32, tag = "1")]
+    pub message_key: i32,
     
-    fn magic_as_string(&self) -> String {
-        String::from_utf8_lossy(&self.magic).to_string()
-    }
-}
-
-impl SensorReading {
-    fn parse<R: Read>(reader: &mut R) -> Result<Self, ParseError> {
-        let timestamp_bytes = read_exact_bytes(reader, 8)?;
-        let timestamp = bytes_to_u64(&timestamp_bytes);
-        
-        let sensor_id_bytes = read_exact_bytes(reader, 4)?;
-        let sensor_id = bytes_to_u32(&sensor_id_bytes);
-        
-        let temperature_bytes = read_exact_bytes(reader, 4)?;
-        let temperature = bytes_to_f32(&temperature_bytes);
-        
-        let humidity_bytes = read_exact_bytes(reader, 4)?;
-        let humidity = bytes_to_f32(&humidity_bytes);
-        
-        let pressure_bytes = read_exact_bytes(reader, 4)?;
-        let pressure = bytes_to_f32(&pressure_bytes);
-        
-        Ok(SensorReading {
-            timestamp,
-            sensor_id,
-            temperature,
-            humidity,
-            pressure,
-        })
-    }
+    #[prost(int32, tag = "2")]
+    pub sequence_number: i32,
     
-    pub fn size_in_bytes() -> usize {
-        8 + 4 + 4 + 4 + 4 // timestamp + sensor_id + temp + humidity + pressure
-    }
+    #[prost(uint64, tag = "3")]
+    pub sys_timestamp: u64,
+    
+    // packed = true gives you the same optimization as packed repeated fields
+    #[prost(float, repeated, packed = "true", tag = "4")]
+    pub normalized_data: Vec<f32>,
+    
+    #[prost(float, repeated, packed = "true", tag = "5")]
+    pub unnormalized_data: Vec<f32>,
+}
 
-    pub fn to_json(&self) -> Result<String, ParseError> {
-        Ok(serde_json::to_string(self)?)
-    }
-
-    pub fn get_kafka_key(&self) -> String {
-        format!("sensor_{}", self.sensor_id)
+impl AutomationData {
+    fn new(message_key: i32, sequence_number: i32) -> Self {
+        let mut rng = rand::thread_rng();
+        
+        // Generate 780,000 random floats for normalized data (between 0.0 and 1.0)
+        let normalized_data: Vec<f32> = (0..780_000)
+            .map(|_| rng.gen::<f32>())
+            .collect();
+        
+        // Generate 780,000 random floats for unnormalized data
+        let unnormalized_data: Vec<f32> = (0..780_000)
+            .map(|_| rng.gen_range(-1000.0..1000.0))
+            .collect();
+        
+        // Get current Unix timestamp
+        let sys_timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+        
+        AutomationData {
+            message_key,
+            sequence_number,
+            sys_timestamp,
+            normalized_data,
+            unnormalized_data,
+        }
     }
 }
 
-pub struct SensorParser;
-
-impl SensorParser {
-    pub fn parse_sensor_file(filename: &str) -> Result<Vec<SensorReading>, ParseError> {
-        let file = File::open(filename)?;
-        let mut reader = BufReader::new(file);
-        
-        let header = FileHeader::parse(&mut reader)?;
-        
-        if &header.magic != b"SENS" {
-            return Err(ParseError::InvalidMagic(format!(
-                "Expected 'SENS', found '{}'", 
-                header.magic_as_string()
-            )));
-        }
-        
-        info!("Parsing sensor file: {} records, version {}", 
-                header.record_count, header.version);
-        
-        let mut readings = Vec::new();
-        
-        for i in 0..header.record_count {
-            match SensorReading::parse(&mut reader) {
-                Ok(reading) => readings.push(reading),
-                Err(e) => {
-                    error!("Error parsing sensor record {}: {:?}", i, e);
-                    break;
-                }
-            }
-        }
-        
-        Ok(readings)
-    }
-}
-
-pub struct KafkaProducerWrapper {
-    producer: FutureProducer,
-    topic: String,
-}
-
-impl KafkaProducerWrapper {
-    pub fn new(brokers: &str, topic: &str) -> Result<Self, ParseError> {
-        let producer: FutureProducer = ClientConfig::new()
-            .set("bootstrap.servers", brokers)
-            .set("message.timeout.ms", "5000")
-            .set("acks", "all") // Wait for all replicas to acknowledge
-            .set("retries", "3")
-            .set("retry.backoff.ms", "100")
-            .set("batch.size", "16384")
-            .set("linger.ms", "10") // Small delay to batch messages
-            .create()?;
-
-        Ok(KafkaProducerWrapper {
-            producer,
-            topic: topic.to_string(),
-        })
-    }
-
-    pub async fn send_sensor_reading(&self, reading: &SensorReading) -> Result<(), ParseError> {
-        let json_payload = reading.to_json()?;
-        let key = reading.get_kafka_key();
-
-        let record = FutureRecord::to(&self.topic)
-            .key(&key)
-            .payload(&json_payload)
-            .timestamp(reading.timestamp as i64);
-
-        match self.producer.send(record, Timeout::After(Duration::from_secs(5))).await {
-            Ok(delivery) => {
-                info!("Message sent successfully: {:?}", delivery);
-                Ok(())
-            }
-            Err((kafka_error, _)) => {
-                error!("Failed to send message: {:?}", kafka_error);
-                Err(ParseError::KafkaError(kafka_error))
-            }
-        }
-    }
-
-    pub async fn send_batch_sensor_readings(&self, readings: &[SensorReading]) -> Result<(), ParseError> {
-        info!("Sending {} sensor readings to Kafka topic '{}'", readings.len(), self.topic);
-        
-        let mut successful_sends = 0;
-        let mut failed_sends = 0;
-
-        for (index, reading) in readings.iter().enumerate() {
-            match self.send_sensor_reading(reading).await {
-                Ok(_) => {
-                    successful_sends += 1;
-                    if (index + 1) % 100 == 0 {
-                        info!("Sent {} of {} messages", index + 1, readings.len());
+async fn create_topic_if_not_exists(bootstrap_servers: &str, topic_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let admin_client: AdminClient<_> = ClientConfig::new()
+        .set("bootstrap.servers", bootstrap_servers)
+        .create()?;
+    
+    // Create topic with large message support
+    let topic_config = vec![
+        ("max.message.bytes", "10485760"), // 10MB
+        ("compression.type", "lz4"),
+    ];
+    
+    let new_topic = NewTopic {
+        name: topic_name,
+        num_partitions: 3, // Multiple partitions for better parallelism
+        replication: TopicReplication::Fixed(1),
+        config: topic_config,
+    };
+    
+    let admin_opts = AdminOptions::new().request_timeout(Some(Duration::from_secs(10)));
+    
+    match admin_client.create_topics(&[new_topic], &admin_opts).await {
+        Ok(results) => {
+            for result in results {
+                match result {
+                    Ok(topic) => println!("✅ Topic '{}' created successfully", topic),
+                    Err((topic, err)) => {
+                        // Topic might already exist, which is fine
+                        if err.to_string().contains("already exists") {
+                            println!("📋 Topic '{}' already exists", topic);
+                        } else {
+                            println!("⚠️  Warning creating topic '{}': {}", topic, err);
+                        }
                     }
                 }
-                Err(e) => {
-                    failed_sends += 1;
-                    warn!("Failed to send reading for sensor {}: {:?}", reading.sensor_id, e);
-                }
             }
         }
-
-        info!("Batch send complete: {} successful, {} failed", successful_sends, failed_sends);
-
-        // Flush the producer to ensure all messages are sent
-        match self.producer.flush(Timeout::After(Duration::from_secs(10))) {
-            Ok(_) => info!("Producer flushed successfully"),
-            Err(e) => error!("Failed to flush producer: {:?}", e),
+        Err(err) => {
+            println!("⚠️  Warning during topic creation: {}", err);
         }
+    }
+    
+    Ok(())
+}
 
-        Ok(())
+async fn create_kafka_producer() -> Result<FutureProducer, rdkafka::error::KafkaError> {
+    ClientConfig::new()
+        .set("bootstrap.servers", "localhost:19092")
+        .set("message.max.bytes", "10485760") // 10MB max message size
+        .set("compression.type", "lz4") // Enable LZ4 compression
+        .set("batch.size", "1048576") // 1MB batch size
+        .set("linger.ms", "10") // Small delay to allow batching
+        .create()
+}
+
+async fn send_to_redpanda(producer: &FutureProducer, data: &AutomationData, topic: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // Serialize to protobuf bytes
+    let mut buf = Vec::new();
+    data.encode(&mut buf)?;
+    
+    // Print detailed message size info
+    let raw_size = buf.len();
+    let size_mb = raw_size as f64 / 1024.0 / 1024.0;
+    
+    println!("📦 Message {} - Raw protobuf size: {} bytes ({:.2} MB)", 
+             data.sequence_number, raw_size, size_mb);
+    
+    // Create longer-lived key string
+    let key = data.sequence_number.to_string();
+    
+    // Create the record
+    let record = FutureRecord::to(topic)
+        .key(&key)
+        .payload(&buf);
+    
+    // Send the message
+    match producer.send(record, tokio::time::Duration::from_secs(5)).await {
+        Ok(delivery) => {
+            println!("✅ Message {} sent successfully!", data.sequence_number);
+            println!("   📍 Partition: {}, Offset: {}", delivery.0, delivery.1);
+            Ok(())
+        }
+        Err((err, _)) => {
+            eprintln!("❌ Failed to send message {}: {}", data.sequence_number, err);
+            Err(Box::new(err))
+        }
     }
 }
 
 #[tokio::main]
-async fn main() -> Result<(), ParseError> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
-
-    info!("Sensor Data Parser with Kafka Integration\n");
+    tracing_subscriber::fmt::init();
     
-    // Configuration
-    let data_path = std::env::var("DATA_PATH")
-        .unwrap_or("../webway-data-generation/test_data/sensor_data.bin".to_string());
-    let kafka_brokers = std::env::var("KAFKA_BROKERS")
-        .unwrap_or("localhost:19092".to_string());
-    let kafka_topic = std::env::var("KAFKA_TOPIC")
-        .unwrap_or("sensor-data".to_string());
-
-    info!("Configuration:");
-    info!("  Data file: {}", data_path);
-    info!("  Kafka brokers: {}", kafka_brokers);
-    info!("  Kafka topic: {}", kafka_topic);
-
-    // Parse sensor data
-    match SensorParser::parse_sensor_file(&data_path) {
-        Ok(readings) => {
-            info!("Successfully parsed {} sensor readings", readings.len());
-            
-            if !readings.is_empty() {
-                info!("Sample readings:");
-                for (i, reading) in readings.iter().take(5).enumerate() {
-                    info!("  {}: Sensor {} - {:.1}°C, {:.1}% humidity, {:.1} hPa", 
-                            i + 1, reading.sensor_id, reading.temperature, 
-                            reading.humidity, reading.pressure);
-                }
-
-                // Create Kafka producer and send data
-                match KafkaProducerWrapper::new(&kafka_brokers, &kafka_topic) {
-                    Ok(kafka_producer) => {
-                        info!("Kafka producer created successfully");
-                        
-                        // Send all readings to Kafka
-                        if let Err(e) = kafka_producer.send_batch_sensor_readings(&readings).await {
-                            error!("Error sending data to Kafka: {:?}", e);
-                        } else {
-                            info!("All sensor data sent to Kafka successfully!");
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to create Kafka producer: {:?}", e);
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            error!("Error parsing sensor data: {:?}", e);
-        }
+    const MESSAGE_KEY: i32 = 12345;
+    const TOPIC: &str = "automation-data";
+    const BOOTSTRAP_SERVERS: &str = "localhost:19092";
+    
+    // Create topic with proper large message configuration
+    create_topic_if_not_exists(BOOTSTRAP_SERVERS, TOPIC).await?;
+    
+    // Create Kafka producer
+    let producer = create_kafka_producer().await?;
+    
+    // Generate and send 10 AutomationData messages
+    let mut total_raw_size = 0;
+    let start_time = std::time::Instant::now();
+    
+    for i in 0..10 {
+        let data = AutomationData::new(MESSAGE_KEY, i);
+        
+        // Calculate raw protobuf size
+        let mut buf = Vec::new();
+        data.encode(&mut buf)?;
+        let raw_size = buf.len();
+        total_raw_size += raw_size;
+        
+        // Calculate raw data size (before any encoding)
+        let raw_data_size = (data.normalized_data.len() * 4) + (data.unnormalized_data.len() * 4) + 4 + 4 + 8; // f32s + i32s + u64
+        let raw_data_size_mb = raw_data_size as f64 / 1024.0 / 1024.0;
+        
+        // Show detailed message info
+        println!("\n🔄 Generated AutomationData #{}", i);
+        println!("   📊 Message Key: {}", data.message_key);
+        println!("   🔢 Sequence Number: {}", data.sequence_number);
+        println!("   ⏰ Timestamp: {}", data.sys_timestamp);
+        println!("   📈 Normalized Data: {} floats", data.normalized_data.len());
+        println!("   📉 Unnormalized Data: {} floats", data.unnormalized_data.len());
+        println!("   📁 Raw Data Size: {} bytes ({:.2} MB)", raw_data_size, raw_data_size_mb);
+        println!("   📦 Raw Protobuf Size: {} bytes ({:.2} MB)", raw_size, raw_size as f64 / 1024.0 / 1024.0);
+        
+        // Send to Redpanda (this will print additional size info)
+        send_to_redpanda(&producer, &data, TOPIC).await?;
+        
+        // Small delay between messages
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
     
+    // Print summary statistics
+    let elapsed = start_time.elapsed();
+    let avg_size = total_raw_size / 10;
+    let total_size_mb = total_raw_size as f64 / 1024.0 / 1024.0;
+    let avg_size_mb = avg_size as f64 / 1024.0 / 1024.0;
+    
+    println!("\n📊 SUMMARY STATISTICS:");
+    println!("   📨 Total messages sent: 10");
+    println!("   📦 Total raw data size: {} bytes ({:.2} MB)", total_raw_size, total_size_mb);
+    println!("   📊 Average message size: {} bytes ({:.2} MB)", avg_size, avg_size_mb);
+    println!("   ⏱️  Total time: {:.2}s", elapsed.as_secs_f64());
+    println!("   🚀 Throughput: {:.2} MB/s", total_size_mb / elapsed.as_secs_f64());
+    
+    // Flush any remaining messages
+    let _ = producer.flush(tokio::time::Duration::from_secs(5));
+    
+    println!("\n🎉 All messages sent successfully!");
+    println!("💡 Note: Actual network transfer size will be smaller due to LZ4 compression");
     Ok(())
 }
