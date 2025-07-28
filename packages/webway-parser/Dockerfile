@@ -19,6 +19,9 @@ WORKDIR /usr/src/app
 # Copy the Cargo.toml and Cargo.lock files
 COPY Cargo.toml Cargo.lock ./
 
+# Copy the README.md file
+COPY README.md ./
+
 # Copy the source code
 COPY src/ ./src/
 

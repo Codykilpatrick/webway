@@ -10,7 +10,6 @@ Thumbs.db
 .gitignore
 Dockerfile
 .dockerignore
-README.md
 docs/
 *.log
 *.tmp

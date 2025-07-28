@@ -51,3 +51,36 @@ mysql_async = "0.33"
 # Database utilities
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+
+# Optional testing dependencies (only included when features are enabled)
+testcontainers = { version = "0.15", optional = true }
+testcontainers-modules = { version = "0.3", features = ["kafka"], optional = true }
+quickcheck = { version = "1.0", optional = true }
+quickcheck_macros = { version = "1.0", optional = true }
+proptest = { version = "1.4", optional = true }
+
+[dev-dependencies]
+# Core testing (always available in tests)
+tokio-test = "0.4"
+mockall = "0.12"
+wiremock = "0.6"
+assert_matches = "1.5"
+pretty_assertions = "1.4"
+serial_test = "3.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+fake = { version = "2.9", features = ["derive", "chrono", "uuid"] }
+rstest = "0.19"
+insta = { version = "1.34", features = ["json", "yaml"] }
+futures-test = "0.3"
+
+[features]
+default = []
+
+# Property-based testing feature
+property-tests = ["quickcheck", "quickcheck_macros", "proptest"]
+
+# Integration testing feature (requires external services)
+integration-tests = ["testcontainers", "testcontainers-modules"]
+
+# All testing features
+full-test-suite = ["property-tests", "integration-tests"]
