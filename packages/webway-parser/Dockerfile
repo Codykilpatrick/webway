@@ -1,6 +1,9 @@
 # Use the official Rust image as the base
 FROM rust:1.87
 
+# Install rustfmt and clippy components
+RUN rustup component add rustfmt clippy
+
 # Install system dependencies for Rust build
 RUN apt-get update && apt-get install -y \
     vim \
@@ -24,7 +27,6 @@ RUN cargo build --release
 
 # Create directory for test data
 RUN mkdir -p /app/test_data
-
 
 # Set the default command
 CMD ["./target/release/webway-parser"]
