@@ -32,8 +32,13 @@ cargo doc                               # Generate documentation
 cargo doc --open                       # Generate and open docs
 cargo test --doc                       # Test code examples in docs
 
-# Coverage (requires cargo-tarpaulin)
-cargo tarpaulin --out html              # Generate HTML coverage report
+# Coverage (requires cargo-llvm-cov)
+cargo llvm-cov --all-features              # Quick coverage report in terminal
+cargo llvm-cov --all-features --html       # Generate HTML coverage report
+cargo llvm-cov --all-features --lcov --output-path lcov.info  # LCOV format for CI/CD
+
+# Docker coverage
+docker run --rm your-image cargo llvm-cov --all-features  # Run coverage in container
 ```
 
 ## 🔧 Setup Requirements
@@ -47,7 +52,7 @@ Install these tools for the full development experience:
 rustup component add rustfmt clippy
 
 # Coverage tool (optional)
-cargo install cargo-tarpaulin
+cargo install cargo-llvm-cov
 
 # Security audit (optional)  
 cargo install cargo-audit
