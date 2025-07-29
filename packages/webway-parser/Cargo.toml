@@ -84,3 +84,14 @@ integration-tests = ["testcontainers", "testcontainers-modules"]
 
 # All testing features
 full-test-suite = ["property-tests", "integration-tests"]
+
+# Test coverage configuration
+[profile.coverage]
+inherits = "dev"
+debug = true
+opt-level = 0
+overflow-checks = false
+
+[[bin]]
+name = "webway-parser"
+path = "src/main.rs"

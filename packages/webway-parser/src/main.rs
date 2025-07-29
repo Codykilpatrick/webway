@@ -215,3 +215,95 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("💡 Note: Actual network transfer size will be smaller due to LZ4 compression");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn test_automation_data_creation() {
+        let data = AutomationData::new(12345, 1);
+        
+        assert_eq!(data.message_key, 12345);
+        assert_eq!(data.sequence_number, 1);
+        assert_eq!(data.normalized_data.len(), 780_000);
+        assert_eq!(data.unnormalized_data.len(), 780_000);
+        
+        // Check that timestamp is reasonable (within last minute)
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(data.sys_timestamp <= now);
+        assert!(data.sys_timestamp > now - 60); // Created within last minute
+    }
+
+    #[test]
+    fn test_automation_data_normalized_range() {
+        let data = AutomationData::new(100, 2);
+        
+        // Check that normalized data is in expected range [0.0, 1.0)
+        for &value in &data.normalized_data {
+            assert!(value >= 0.0 && value < 1.0, "Normalized value {} out of range", value);
+        }
+    }
+
+    #[test]
+    fn test_automation_data_unnormalized_range() {
+        let data = AutomationData::new(200, 3);
+        
+        // Check that unnormalized data is in expected range [-1000.0, 1000.0)
+        for &value in &data.unnormalized_data {
+            assert!(value >= -1000.0 && value < 1000.0, "Unnormalized value {} out of range", value);
+        }
+    }
+
+    #[test]
+    fn test_automation_data_serialization() {
+        let data = AutomationData::new(300, 4);
+        
+        // Test protobuf serialization
+        let mut buf = Vec::new();
+        data.encode(&mut buf).expect("Should encode successfully");
+        
+        // Should create a non-empty buffer
+        assert!(!buf.is_empty());
+        
+        // Should be able to decode back
+        let decoded = AutomationData::decode(&buf[..]).expect("Should decode successfully");
+        assert_eq!(decoded.message_key, data.message_key);
+        assert_eq!(decoded.sequence_number, data.sequence_number);
+        assert_eq!(decoded.sys_timestamp, data.sys_timestamp);
+        assert_eq!(decoded.normalized_data.len(), data.normalized_data.len());
+        assert_eq!(decoded.unnormalized_data.len(), data.unnormalized_data.len());
+    }
+
+    #[test]
+    fn test_automation_data_different_sequence_numbers() {
+        let data1 = AutomationData::new(400, 5);
+        let data2 = AutomationData::new(400, 6);
+        
+        // Should have same message key but different sequence numbers
+        assert_eq!(data1.message_key, data2.message_key);
+        assert_ne!(data1.sequence_number, data2.sequence_number);
+        
+        // Data should be different (very unlikely to be identical with random generation)
+        assert_ne!(data1.normalized_data, data2.normalized_data);
+        assert_ne!(data1.unnormalized_data, data2.unnormalized_data);
+    }
+
+    #[tokio::test]
+    async fn test_create_kafka_producer() {
+        // This test will only work if Kafka/Redpanda is running
+        // We'll just test that the configuration doesn't panic
+        let result = create_kafka_producer().await;
+        
+        // We expect this might fail if Kafka isn't running, but it shouldn't panic
+        // The function should return either Ok or a proper error
+        match result {
+            Ok(_) => println!("Kafka producer created successfully"),
+            Err(e) => println!("Expected error when Kafka not available: {}", e),
+        }
+    }
+}
