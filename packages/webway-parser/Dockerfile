@@ -1,16 +1,13 @@
 # Use the official Rust image as the base
 FROM rust:1.87
 
-# Install rustfmt and clippy components
-RUN rustup component add rustfmt clippy
-
-# Install llvm-tools-preview for coverage
-RUN rustup component add llvm-tools-preview
+# Install only the rustup components you need
+RUN rustup component add rustfmt clippy llvm-tools-preview
 
 # Install cargo-llvm-cov for test coverage
 RUN cargo install cargo-llvm-cov
 
-# Install system dependencies for Rust build
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     vim \
     libsasl2-dev \
@@ -22,20 +19,13 @@ RUN apt-get update && apt-get install -y \
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy the Cargo.toml and Cargo.lock files
+# Copy dependency files and fetch everything
 COPY Cargo.toml Cargo.lock ./
-
-# Copy the README.md file
 COPY README.md ./
+RUN cargo fetch
 
-# Copy the source code
+# Copy source code (for when you want to build/test)
 COPY src/ ./src/
 
-# Build the application in release mode
-RUN cargo build --release
-
-# Create directory for test data and coverage reports
-RUN mkdir -p /app/test_data /app/coverage
-
-# Set the default command (can be overridden)
-CMD ["./target/release/webway-parser"]
+# Set a shell as default command since you're keeping vim
+CMD ["/bin/bash"]
