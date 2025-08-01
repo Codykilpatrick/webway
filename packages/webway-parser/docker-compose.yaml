@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile
     platform: linux/amd64
     container_name: webway-parser
-    image: webway-parser:1.1.0
+    image: webway-parser:1.2.0
     volumes:
       - ../webway-data-generation/test_data:/app/test_data:ro
       - ./output:/app/output
