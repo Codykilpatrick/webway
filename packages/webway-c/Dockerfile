@@ -28,6 +28,21 @@ RUN apt-get update && apt-get install -y \
     liblz4-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install additional libraries for FFI, bindings, and inter-container communication
+RUN apt-get update && apt-get install -y \
+    libffi-dev \
+    libzmq3-dev \
+    libuv1-dev \
+    libev-dev \
+    libevent-dev \
+    libwebsockets-dev \
+    libyaml-dev \
+    libxml2-dev \
+    libprotobuf-c-dev \
+    protobuf-c-compiler \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install modern C++ libraries
 RUN apt-get update && apt-get install -y \
     libfmt-dev \

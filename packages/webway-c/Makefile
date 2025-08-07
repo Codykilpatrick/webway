@@ -5,7 +5,7 @@ CC = gcc
 CXX = g++
 CFLAGS = -Wall -Wextra -std=c11 -O2 -g
 CXXFLAGS = -Wall -Wextra -std=c++17 -O2 -g
-LDFLAGS = -lrdkafka -ljson-c -lcurl -lz -llz4 -lssl -lcrypto -pthread
+LDFLAGS = -lrdkafka -ljson-c -lcurl -lz -llz4 -lssl -lcrypto -pthread -lffi -ldl -lzmq -luv -lev -levent -lwebsockets -lyaml -lxml2 -lprotobuf-c
 
 # Debug and Release configurations
 DEBUG_FLAGS = -DDEBUG -g -O0
