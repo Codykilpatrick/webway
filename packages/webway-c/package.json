@@ -1,0 +1,47 @@
+{
+  "name": "@webway/data-parser-c",
+  "version": "1.0.0",
+  "description": "High-performance data parser built with C/C++",
+  "main": "dist/libwebway.so",
+  "scripts": {
+    "build": "make build",
+    "build:release": "make release",
+    "dev": "make run",
+    "test": "make test",
+    "clean": "make clean",
+    "lint": "make lint",
+    "format": "make format",
+    "format:check": "make format-check",
+    "prettier:check": "prettier --check .",
+    "prettier:fix": "prettier --write .",
+    "valgrind": "make valgrind",
+    "gdb": "make debug",
+    "dockerfilelint": "dockerfilelint Dockerfile"
+  },
+  "devDependencies": {
+    "@types/node": "20.0.0",
+    "dockerfilelint": "^1.8.0",
+    "prettier": "3.1.0"
+  },
+  "keywords": [
+    "data-parser",
+    "c",
+    "cpp",
+    "c++",
+    "performance",
+    "utilities",
+    "webway",
+    "kafka",
+    "protobuf"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/webway.git",
+    "directory": "packages/webway-c"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "yarn@4.8.1"
+}
