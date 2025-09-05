@@ -6,6 +6,9 @@ edition = "2021"
 [dependencies]
 rand = "0.8"
 
+# Bindgen for generating Rust bindings for C/C++ libraries
+bindgen = "0.69"
+
 # Core binary parsing
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3"
