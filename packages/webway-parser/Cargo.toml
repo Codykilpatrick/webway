@@ -66,6 +66,15 @@ proptest = { version = "1.4", optional = true }
 log = "0.4"
 env_logger = "0.11"
 
+reqwest = { version = "0.12", features = ["json"] }
+prost-types = "0.12"
+
+# Confluent-compatible Schema Registry helper for Protobuf (async, raw)
+schema_registry_converter = { version = "4.5", features = ["futures", "proto_raw"] }
+
+[build-dependencies]
+prost-build = "0.12"
+
 [dev-dependencies]
 # Core testing (always available in tests)
 tokio-test = "0.4"
