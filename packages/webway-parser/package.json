@@ -14,7 +14,9 @@
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "clean": "cargo clean && rm -rf dist",
-    "dockerfilelint": "dockerfilelint Dockerfile"
+    "dockerfilelint": "dockerfilelint Dockerfile",
+    "changeset": "changeset add",
+    "version:check": "knope --version"
   },
   "devDependencies": {
     "@types/node": "20.0.0",

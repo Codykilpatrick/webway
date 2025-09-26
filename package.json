@@ -11,11 +11,21 @@
     "build": "yarn workspace @webway/webway-parser run build",
     "test": "yarn workspace @webway/webway-parser run test",
     "prettier:check": "prettier --check .",
-    "prettier:fix": "prettier --write ."
+    "prettier:fix": "prettier --write .",
+    "changeset": "changeset add",
+    "changeset:status": "changeset status",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish",
+    "changeset:check": "knope check-changesets",
+    "release:prepare": "knope prepare-release",
+    "release:publish": "knope release",
+    "version": "changeset version"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.1",
     "@types/node": "20.0.0",
     "@yarnpkg/sdks": "3.2.2",
+    "knope": "^0.16.2",
     "prettier": "3.1.0",
     "typescript": "5.8.3"
   },
