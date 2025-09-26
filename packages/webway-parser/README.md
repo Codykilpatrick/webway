@@ -1,15 +1,31 @@
-# Testing and Linting Guide
+## Directory strucutre
 
-This guide covers all the testing, linting, and code quality tools available for the `webway-parser` project.
-
-## 🧪 Testing Overview
-
-The project includes multiple testing strategies to ensure code quality and reliability:
-
-- **Unit Tests** - Fast tests for individual functions and components
-- **Integration Tests** - Tests with real Kafka/database connections
-- **Property-Based Tests** - Randomized testing for edge cases
-- **Performance Tests** - Benchmarking and performance validation
+```bash
+src/
+├── lib.rs                     // Library code
+├── bin/
+│   ├── apb19_file_parser.rs   // Binary for APB19 parsing
+│   └── apb21_file_parser.rs   // Binary for APB21 parsing  
+├── protocols/
+│   ├── mod.rs
+│   ├── common/
+│   │   ├── mod.rs
+│   │   ├── primitives.rs
+│   │   ├── errors.rs
+│   │   └── types.rs
+│   ├── ti18-apb19/
+│   │   ├── mod.rs
+│   │   ├── types.rs
+│   │   └── parsers.rs
+│   └── ti20-apb21/
+│       ├── mod.rs
+│       ├── types.rs
+│       └── parsers.rs
+└── converters/
+    ├── mod.rs
+    ├── arrow.rs
+    └── protobuf.rs
+```
 
 ## 📋 Quick Commands
 
@@ -51,80 +67,9 @@ Install these tools for the full development experience:
 # Essential tools
 rustup component add rustfmt clippy
 
-# Coverage tool (optional)
+# Coverage tool 
 cargo install cargo-llvm-cov
-
-# Security audit (optional)  
-cargo install cargo-audit
-
-# Dependency checking (optional)
-cargo install cargo-outdated
 ```
-
-### Docker for Integration Tests
-
-Integration tests require Docker to spin up test containers:
-
-```bash
-# Start Docker daemon
-docker --version  # Verify Docker is installed
-
-# Pull test images (optional - will happen automatically)
-docker pull redpandadata/redpanda:latest
-docker pull postgres:15
-```
-
-## 📊 Test Categories
-
-### Unit Tests (`cargo test`)
-
-Fast tests that don't require external dependencies:
-
-```rust
-#[test]
-fn test_automation_data_creation() {
-    let data = AutomationData::new_deterministic(123, 456, 1234567890);
-    assert_eq!(data.message_key, 123);
-    assert_eq!(data.sequence_number, 456);
-}
-```
-
-**Location**: Inline with source code using `#[cfg(test)]`
-
-### Integration Tests (`cargo test --features integration-tests`)
-
-Tests that require real external services:
-
-```rust
-#[tokio::test]
-#[ignore] // Ignored by default, run with --ignored flag
-async fn test_kafka_integration() {
-    // Spins up real Kafka container
-    let kafka = testcontainers::start_kafka().await;
-    // ... test with real Kafka
-}
-```
-
-**Requirements**: 
-- Docker running
-- `--features integration-tests` flag
-- Use `--ignored` to run tests marked with `#[ignore]`
-
-### Property-Based Tests (`cargo test --features property-tests`)
-
-Randomized testing to find edge cases:
-
-```rust
-#[quickcheck]
-fn prop_serialization_roundtrip(key: i32, seq: i32) -> bool {
-    let data = AutomationData::new_deterministic(key, seq, 12345);
-    let encoded = encode(&data);
-    let decoded = decode(&encoded);
-    data == decoded
-}
-```
-
-**Location**: `tests/property_tests.rs`
 
 ## 🧹 Code Quality Tools
 
@@ -136,9 +81,6 @@ cargo fmt
 
 # Check if code is formatted (CI usage)
 cargo fmt -- --check
-
-# Format with custom config
-cargo fmt -- --config hard_tabs=true
 ```
 
 **Configuration**: Create `.rustfmt.toml` for custom formatting rules:
@@ -167,182 +109,6 @@ cargo clippy --fix
 cargo clippy --tests
 ```
 
-**Common clippy configurations** in `Cargo.toml`:
-
-```toml
-[lints.clippy]
-# Deny these lints
-unwrap_used = "deny"
-expect_used = "deny"
-panic = "deny"
-
-# Allow these lints
-too_many_arguments = "allow"
-module_name_repetitions = "allow"
-```
-
-### Documentation
-
-```bash
-# Generate docs
-cargo doc
-
-# Generate and open docs
-cargo doc --open
-
-# Test documentation examples
-cargo test --doc
-
-# Generate docs with private items
-cargo doc --document-private-items
-```
-
-## 🎯 Testing Best Practices
-
-### Test Organization
-
-```
-src/
-├── lib.rs
-├── kafka_producer.rs  # Contains #[cfg(test)] mod tests
-└── automation_data.rs # Contains #[cfg(test)] mod tests
-
-tests/
-├── integration_tests.rs      # Integration tests
-├── property_tests.rs         # Property-based tests
-└── common/
-    └── mod.rs                # Shared test utilities
-```
-
-### Test Naming Convention
-
-```rust
-#[test]
-fn test_function_name_expected_behavior() {
-    // Given
-    let input = setup_test_data();
-    
-    // When
-    let result = function_under_test(input);
-    
-    // Then
-    assert_eq!(result, expected_value);
-}
-```
-
-### Async Testing
-
-```rust
-#[tokio::test]
-async fn test_async_function() {
-    let result = async_function().await;
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-#[serial] // Run sequentially if tests conflict
-async fn test_with_shared_resource() {
-    // Test that can't run in parallel
-}
-```
-
-### Mocking
-
-```rust
-use mockall::automock;
-
-#[automock]
-trait KafkaClient {
-    async fn send(&self, data: &[u8]) -> Result<(), Error>;
-}
-
-#[tokio::test]
-async fn test_with_mock() {
-    let mut mock = MockKafkaClient::new();
-    mock.expect_send()
-        .times(1)
-        .returning(|_| Ok(()));
-    
-    // Test using mock
-}
-```
-
-## 🛠 IDE Configuration
-
-### VS Code Settings
-
-Create `.vscode/settings.json`:
-
-```json
-{
-    "rust-analyzer.check.command": "clippy",
-    "rust-analyzer.cargo.features": "all",
-    "rust-analyzer.procMacro.enable": true,
-    "files.insertFinalNewline": true,
-    "editor.formatOnSave": true
-}
-```
-
-### VS Code Tasks
-
-Create `.vscode/tasks.json`:
-
-```json
-{
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "cargo test",
-            "type": "shell",
-            "command": "cargo",
-            "args": ["test"],
-            "group": "test"
-        },
-        {
-            "label": "cargo clippy",
-            "type": "shell", 
-            "command": "cargo",
-            "args": ["clippy"]
-        }
-    ]
-}
-```
-
-## 🐛 Debugging Tests
-
-### Test Output
-
-```bash
-# Show test output
-cargo test -- --nocapture
-
-# Show test output for specific test
-cargo test test_name -- --nocapture
-
-# Run tests with backtrace on panic
-RUST_BACKTRACE=1 cargo test
-
-# Run single test
-cargo test test_specific_function
-
-# Run tests matching pattern
-cargo test kafka
-```
-
-### Debug Configuration
-
-```rust
-#[test]
-fn debug_test() {
-    env_logger::init(); // Initialize logging in tests
-    
-    let data = create_test_data();
-    println!("Debug: data = {:?}", data); // Will show with --nocapture
-    
-    assert_eq!(data.field, expected_value);
-}
-```
-
 ## 📚 Additional Resources
 
 - [Rust Testing Guide](https://doc.rust-lang.org/book/ch11-00-testing.html)
@@ -350,14 +116,3 @@ fn debug_test() {
 - [Property-Based Testing with QuickCheck](https://docs.rs/quickcheck/latest/quickcheck/)
 - [Testcontainers for Rust](https://docs.rs/testcontainers/latest/testcontainers/)
 - [Criterion Benchmarking](https://bheisler.github.io/criterion.rs/book/)
-
-## 🔄 Development Workflow
-
-1. **Write tests first** (TDD approach)
-2. **Run `cargo test`** frequently during development
-3. **Use `cargo clippy`** to catch common issues
-4. **Format with `cargo fmt`** before committing
-5. **Run integration tests** before pushing
-6. **Check coverage** periodically to identify untested code
-
-Happy testing! 🎉
