@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "lint": "yarn workspace @webway/data-generation run lint",
-    "build": "yarn workspace @webway/data-generation run build",
-    "test": "yarn workspace @webway/data-generation run test",
+    "lint": "yarn workspace @webway/webway-parser run lint",
+    "build": "yarn workspace @webway/webway-parser run build",
+    "test": "yarn workspace @webway/webway-parser run test",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write ."
   },

@@ -131,16 +131,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@webway/data-generation@workspace:packages/webway-data-generation":
-  version: 0.0.0-use.local
-  resolution: "@webway/data-generation@workspace:packages/webway-data-generation"
-  dependencies:
-    "@types/node": "npm:20.0.0"
-    prettier: "npm:3.1.0"
-    typescript: "npm:5.8.3"
-  languageName: unknown
-  linkType: soft
-
 "@webway/data-parser@workspace:packages/webway-parser":
   version: 0.0.0-use.local
   resolution: "@webway/data-parser@workspace:packages/webway-parser"
