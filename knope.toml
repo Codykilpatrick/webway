@@ -1,0 +1,76 @@
+# Knope configuration for webway monorepo
+# See https://knope.tech for documentation
+# This configuration uses changesets for explicit version control
+
+[package.webway-monorepo]
+versioned_files = ["package.json"]
+changelog = "CHANGELOG.md"
+
+[package.webway-parser]
+versioned_files = ["packages/webway-parser/package.json", "packages/webway-parser/Cargo.toml"]
+changelog = "packages/webway-parser/CHANGELOG.md"
+
+# Workflow for consuming changesets and preparing releases
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "Command"
+command = "changeset version"
+
+[[workflows.steps]]
+type = "CreateChangelogEntry"
+package = "webway-parser"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+title = "Release webway-parser v{{ version }}"
+body = """
+## 🚀 Release Changes
+
+This PR contains version bumps and changelog updates based on the changesets that have been merged.
+
+### 📋 Changes Included
+
+{{ changelog_entry }}
+
+### ✅ Pre-merge Checklist
+
+- [ ] All tests pass
+- [ ] Version bumps look correct
+- [ ] Changelog entries are accurate
+- [ ] No breaking changes without major version bump
+- [ ] Documentation updated if needed
+
+### 🔄 Release Process
+
+1. Review the changes above
+2. Merge this PR to trigger the release
+3. GitHub release will be created automatically
+"""
+
+# Workflow for performing releases after changeset PR is merged
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
+package = "webway-parser"
+
+# Workflow for validating PRs have changesets
+[[workflows]]
+name = "check-changesets"
+
+[[workflows.steps]]
+type = "Command"
+command = "changeset status --since=main"
+
+# Changeset configuration
+[changesets]
+# Directory where changeset files are stored
+directory = ".changeset"
+
+# GitHub integration
+[github]
+owner = "your-username"  # Update this with your GitHub username
+repo = "webway"
