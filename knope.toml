@@ -1,6 +1,5 @@
 # Knope configuration for webway monorepo
-# See https://knope.tech for documentation
-# This configuration uses changesets for explicit version control
+bot.releases.enabled = true
 
 [package.webway-monorepo]
 versioned_files = ["package.json"]
