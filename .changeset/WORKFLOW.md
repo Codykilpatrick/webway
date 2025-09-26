@@ -40,6 +40,7 @@ yarn changeset
 - Documentation updates
 - Internal refactoring without API changes
 - Dependency updates
+- Any change that impacts code not infrastrcture (package.json scripts, Github actions, etc...) should have at least a patch changeset.
 
 ### 3. Changeset File Example
 
@@ -101,42 +102,3 @@ yarn release:publish
 # Manual version bump (alternative to release:prepare)
 yarn version
 ```
-
-## 📋 PR Checklist
-
-Before submitting a PR with user-facing changes:
-
-- [ ] Changes are tested
-- [ ] Changeset is included (`yarn changeset`)
-- [ ] Changeset describes what changed and why
-- [ ] Version bump type is appropriate
-- [ ] Breaking changes are documented
-- [ ] Documentation is updated if needed
-
-## 🎯 Benefits of This Workflow
-
-- **Explicit control** over version bumps
-- **Clear documentation** of what changed in each release  
-- **Automated release notes** generated from changesets
-- **Prevention of accidental releases** without proper documentation
-- **Team coordination** on what's included in each release
-- **Semantic versioning compliance** with manual oversight
-
-## 🔍 Troubleshooting
-
-**"My PR failed validation":**
-- Add a changeset: `yarn changeset`
-- Or add `skip-changeset` label if no release needed
-
-**"I made a mistake in my changeset":**
-- Edit the `.changeset/*.md` file directly
-- Or delete it and run `yarn changeset` again
-
-**"I want to combine multiple changes in one release":**
-- Multiple PRs can each add changesets
-- All changesets will be consumed together in the next release
-
-**"I need to make a hotfix release":**
-- Create changeset with appropriate version (usually patch)
-- Run `yarn release:prepare` immediately
-- Merge the release PR to publish
