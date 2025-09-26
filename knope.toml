@@ -2,3 +2,7 @@
 bot.releases.enabled = true
 versioned_files = ["package.json"]
 changelog = "CHANGELOG.md"
+
+[bot.releases]
+enabled = true
+pull_request.title = "Release 🚀"
