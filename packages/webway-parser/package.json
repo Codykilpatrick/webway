@@ -14,11 +14,11 @@
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "clean": "cargo clean && rm -rf dist",
-    "dockerfilelint": "dockerfilelint Dockerfile",
+    "dockerfilelint": "dockerfilelint Dockerfile"
   },
   "devDependencies": {
     "@types/node": "20.0.0",
-    "dockerfilelint": "^1.8.0",
+    "dockerfilelint": "1.8.0",
     "prettier": "3.1.0",
     "typescript": "5.8.3"
   },
