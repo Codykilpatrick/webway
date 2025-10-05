@@ -25,6 +25,20 @@ COPY Cargo.toml Cargo.lock ./
 COPY README.md ./
 RUN cargo fetch
 
+# Create a dummy main.rs to trigger dependency compilation
+RUN mkdir -p src/bin && \
+    echo "fn main() {}" > src/main.rs && \
+    echo "fn main() {}" > src/bin/apb19_file_parser.rs && \
+    echo "fn main() {}" > src/bin/apb21_file_parser.rs && \
+    echo "" > src/lib.rs
+
+# Build dependencies (this will compile and cache all dependencies)
+RUN cargo build --release && \
+    cargo build --bins --release
+
+# Remove the dummy source files
+RUN rm -rf src/
+
 # Copy source code (for when you want to build/test)
 COPY src/ ./src/
 
