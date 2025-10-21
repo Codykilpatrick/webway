@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile
     platform: linux/amd64
     container_name: webway-parser
-    image: webway-parser:1.4.0
+    image: webway-parser:1.6.0
     volumes:
       - ./src:/app/src/
     environment:

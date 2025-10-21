@@ -4,6 +4,9 @@ FROM rust:1.87
 # Install only the rustup components you need
 RUN rustup component add rustfmt clippy llvm-tools-preview
 
+# Add target architecture
+RUN rustup target add i686-unknown-linux-gnu
+
 # Install cargo-llvm-cov for test coverage
 RUN cargo install cargo-llvm-cov
 
@@ -16,6 +19,18 @@ RUN apt-get update && apt-get install -y \
     cmake \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
+
+RUN dpkg --add-architecture i386 && \
+apt-get update && \
+apt-get install -y \
+    gcc-multilib \
+    g++-multilib \
+    libc6-dev-i386 \
+    libstdc++6:i386 \
+    libc6:i386 \
+    libclang-dev \
+    clang \
+&& rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
